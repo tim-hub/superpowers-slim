@@ -3,12 +3,17 @@
 # Sends exactly "Let's make a react todo list" and asserts brainstorming
 # auto-triggers before any file is written.
 #
-# Usage: ./test-brainstorming-autotrigger.sh [plugin-dir]
+# Usage: ./test-brainstorming-autotrigger.sh [plugin-dir] [max-turns]
+#
+# max-turns defaults to 3. Raise it when a FAIL reports error_max_turns: the
+# turn ceiling can cut a run off before any skill is invoked, which reads as a
+# behavioral failure but is not one.
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="${1:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+MAX_TURNS="${2:-3}"
 
 PROMPT="Let's make a react todo list"
 TIMESTAMP=$(date +%s)
@@ -19,6 +24,7 @@ mkdir -p "$PROJECT_DIR"
 
 echo "=== Brainstorming Auto-Trigger Test ==="
 echo "Plugin dir: $PLUGIN_DIR"
+echo "Max turns: $MAX_TURNS"
 echo "Prompt: $PROMPT"
 echo ""
 
@@ -26,12 +32,16 @@ cd "$PROJECT_DIR"
 timeout 300 claude -p "$PROMPT" \
     --plugin-dir "$PLUGIN_DIR" \
     --dangerously-skip-permissions \
-    --max-turns 3 \
+    --max-turns "$MAX_TURNS" \
     --output-format stream-json \
     --verbose \
     > "$LOG_FILE" 2>&1 || true
 
 echo "=== Results ==="
+if grep -q '"subtype":"error_max_turns"' "$LOG_FILE"; then
+    echo "NOTE: run ended on error_max_turns at --max-turns $MAX_TURNS."
+    echo "      A FAIL below may be a turn-budget artifact, not behavior."
+fi
 echo "Skills triggered:"
 grep -o '"skill":"[^"]*"' "$LOG_FILE" 2>/dev/null | sort -u || echo "  (none)"
 echo ""
