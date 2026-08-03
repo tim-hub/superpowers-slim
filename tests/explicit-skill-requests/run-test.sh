@@ -25,7 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 TIMESTAMP=$(date +%s)
-OUTPUT_DIR="/tmp/superpowers-tests/${TIMESTAMP}/explicit-skill-requests/${SKILL_NAME}"
+OUTPUT_DIR="${TMPDIR:-/tmp}/superpowers-tests/${TIMESTAMP}/explicit-skill-requests/${SKILL_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
 # Read prompt from file
@@ -73,6 +73,7 @@ timeout 300 claude -p "$PROMPT" \
     --dangerously-skip-permissions \
     --max-turns "$MAX_TURNS" \
     --output-format stream-json \
+    --verbose \
     > "$LOG_FILE" 2>&1 || true
 
 echo ""
