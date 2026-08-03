@@ -9,6 +9,59 @@ following Anthropic's
 Upstream supports eleven harnesses and fourteen skills with a session-start hook; this fork targets
 Claude Code alone, carries nine skills, and has no hook.
 
+## Why it's slim
+
+Upstream was built for models that needed to be argued with. Its skills carry Iron Laws, tables of
+rationalizations to pre-empt, red-flag lists of thoughts to catch yourself having, and a hook that
+injects a bootstrap into every session so none of it can be skipped. That machinery exists because it
+was measured to work — on the models of the time.
+
+Anthropic's own position on Claude 5 generation models is that this shape now costs more than it buys:
+
+> Overall, we found that we were overconstraining Claude Code, both through our system prompt and in
+> our CLAUDE.md files and skills.
+
+The cost they name is not disobedience but wasted deliberation — the model spends effort reconciling
+instructions that contradict each other before it can act:
+
+> we see several conflicting messages in a single request like "leave documentation as appropriate,"
+> or "DO NOT add comments" as our system prompt, skills, and user requests clash with each other.
+
+They removed over 80% of Claude Code's own system prompt on that basis. This fork applies the same
+reasoning to the skills: keep every workflow step, drop the argument around it. A skill becomes
+numbered steps plus a line naming the next skill, and nothing else.
+
+The second motive is narrower. `subagent-driven-development` dispatches a fresh implementer and two
+reviewers per task; that runtime cost dominates everything else these skills do. Removing the pattern
+removes the cost — deleting its 6,697 words of prose was almost incidental.
+
+### What the measurements showed
+
+The rewrite was not taken on faith. Before/after runs of the same prompt — `Let's make a react todo
+list` — asking whether `brainstorming` fires before any file gets written:
+
+| configuration | hook | skill bodies | fires |
+|---|---|---|---|
+| upstream | present | original | 1/1 |
+| control | removed | original | 3/3 |
+| first attempt | removed | rewritten, neutral description | 4/6 |
+| shipped | removed | rewritten, binding description | 3/3 |
+
+Two findings, and they point in opposite directions:
+
+**The hook was redundant.** With it deleted and skills untouched, triggering held at 3/3. Claude Code
+discovers `skills/` by convention, so the bootstrap was buying nothing — and it was the only always-on
+context cost in the whole plugin.
+
+**The description was not.** Rewriting the bodies was free, but replacing `brainstorming`'s
+`You MUST use this before any creative work` with a neutral when-to-use clause dropped triggering to
+4/6. Restoring that one frontmatter field returned it to 3/3, with all nine rewritten bodies kept.
+
+So progressive disclosure works on skill bodies, while the always-on surface still needs authority
+framing. Descriptions are the one text present at the moment the model decides whether to invoke
+anything; that is the wrong place to economise. The full evidence, including three confounds that each
+looked like a result first, is in `docs/superpowers/baseline/`.
+
 ## What changed from upstream
 
 - **No session-start hook.** Claude Code discovers `skills/` by convention, so skills are invocable
@@ -22,8 +75,16 @@ Claude Code alone, carries nine skills, and has no hook.
   words to 2,521, a 71% reduction, with no workflow step dropped.
 - **Claude Code only.** The six other harness manifests, their tests, and the porting docs are gone.
 
-Before/after behavioral measurements are in `docs/superpowers/baseline/`. The design rationale and
-the accepted risks are in `docs/superpowers/specs/2026-08-04-slim-superpowers-design.md`.
+Net effect on context: `SKILL.md` prose went from 8,751 words to 2,531 (71%), all skill markdown from
+16,576 to 6,753 (59%), and always-on context from 481 words to zero. Measured against all fourteen
+upstream skills rather than the nine kept, `SKILL.md` prose is down 87%.
+
+Cost is per invocation, not per session — `SKILL.md` loads in full when a skill is invoked, and files
+beside it load only if the model follows a pointer. So the number that matters is the size of the
+skills you actually use in a given session, not the total.
+
+Design rationale and the risks accepted going in:
+`docs/superpowers/specs/2026-08-04-slim-superpowers-design.md`.
 
 ## Installation
 
