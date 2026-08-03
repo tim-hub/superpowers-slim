@@ -1,31 +1,72 @@
-# Testing Superpowers
+# Testing
 
-Superpowers has two distinct kinds of tests, each in its own directory:
+Two tiers, and the distinction matters: one checks the shape of the skills, the other checks what an
+agent actually does when they load.
 
-- **`tests/`** — does the plugin's non-LLM code work? Bash + python tests for the skill structure gate, headless skill-triggering behavior, and analysis utilities.
-- **`evals/`** — do agents behave correctly on real LLM sessions? Python harness driving real tmux sessions of Claude Code / Codex / Gemini CLI, with an LLM actor and verifier judging skill compliance.
+- **Structural** — is the skill set well-formed? Fast, deterministic, no API calls. Run on every edit.
+- **Behavioral** — does an agent invoke the right skill at the right moment? Slow, one sample per run,
+  needs a working `claude` CLI.
 
-## Plugin tests
-
-Live in `tests/`. Currently:
-
-- `tests/claude-code/test-helpers.sh`, `analyze-token-usage.py` — utilities used by remaining bash tests.
-- `tests/claude-code/test-subagent-driven-development.sh` — agent-can-describe-SDD test (no drill counterpart; tests description-recall, not behavior).
-- `tests/claude-code/test-subagent-driven-development-integration.sh` — extended SDD integration with token analysis (drill covers the YAGNI subset; bash adds commit-count, Claude Code task-tracking, and token telemetry assertions).
-- `tests/claude-code/test-worktree-native-preference.sh` — RED-GREEN-REFACTOR validation for worktree skill (drill covers the PRESSURE phase; bash also covers RED/GREEN baselines).
-- `tests/explicit-skill-requests/` — Haiku-specific, multi-turn, and skill-name-prompted tests not covered by drill.
-
-Run plugin tests via the relevant directory's `run-*.sh` or `npm test`.
-
-## Skill behavior evals
-
-Live in `evals/`. Drill is the harness; scenarios live at `evals/scenarios/*.yaml`. See `evals/README.md` for setup. Quick start:
+## Structural gate
 
 ```bash
-cd evals
-uv sync --extra dev
-export ANTHROPIC_API_KEY=sk-...
-uv run drill run triggering-test-driven-development -b claude
+bash tests/skills/check-skills.sh
 ```
 
-Drill scenarios are slow (3-30+ minutes each) and run real LLM sessions. They are not part of CI today; the natural follow-up is a tiered model (fast subset on PR, full sweep nightly + on-demand).
+Checks that the skill set is exactly the nine expected skills, each `SKILL.md` has frontmatter with
+exactly `name` and `description` under 1024 characters, no `@`-link force-loads another skill, no file
+under `skills/` references a deleted skill, and each `SKILL.md` is within its word ceiling. Exits 0 or
+prints one `FAIL:` line per violation.
+
+Word ceilings live in the `budget()` function in that script. When a skill genuinely needs more room,
+raise its ceiling there — do not drop a workflow step to fit.
+
+Also: `bash tests/shell-lint/test-lint-shell.sh` covers `scripts/lint-shell.sh`, and
+`bash tests/systematic-debugging/test-find-polluter.sh` covers that skill's bisection helper.
+
+## Behavioral tests
+
+Both suites load this checkout with `--plugin-dir` and read the resulting JSON stream. Both require
+`--verbose` alongside `--print` and `--output-format stream-json`; without it the CLI exits
+immediately and the harness reports a FAIL that looks behavioral but is not.
+
+### The acceptance test
+
+```bash
+bash tests/claude-code/test-brainstorming-autotrigger.sh
+```
+
+Sends exactly `Let's make a react todo list` and asserts `brainstorming` fires with no file written
+first. This is the load-bearing measurement for this skill set: there is no session-start hook and no
+binding language in any description, so nothing forces a first skill call. If this regresses, that is
+the decision that regressed.
+
+See `tests/claude-code/README.md` for the optional plugin-dir argument, used to compare two trees.
+
+### Explicit skill requests under resistance
+
+```bash
+bash tests/explicit-skill-requests/run-all.sh
+```
+
+Four prompts that name a skill while pushing against process — "Don't waste time, just read the plan
+and start implementing immediately". Passing means the named skill still fired; the runner separately
+reports whether any tool ran before it did.
+
+The remaining prompts in `prompts/` are driven by `run-test.sh`, `run-haiku-test.sh`,
+`run-multiturn-test.sh`, and `run-extended-multiturn-test.sh` individually.
+
+## Reading behavioral results
+
+One run is one sample. A single pass is weak evidence, and `--max-turns 3` can cut a run off before a
+skill is invoked, producing a false FAIL. When a result informs a decision, run it three times and
+report all three.
+
+Recorded before/after measurements live in `docs/superpowers/baseline/`.
+
+## Not included
+
+Upstream's skill-behavior evals use the drill harness from
+[superpowers-evals](https://github.com/prime-radiant-inc/superpowers-evals/). That harness is not part
+of this repo. `.pre-commit-config.yaml` still carries three hooks scoped to `^evals/.*\.py$`; with no
+`evals/` directory they never fire.
