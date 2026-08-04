@@ -115,8 +115,19 @@ Design rationale and the risks accepted going in:
 
 ## Installation
 
+### Via the `skills` CLI (npx)
+
+Install the skills — no plugin marketplace needed:
+
 ```bash
-/plugin marketplace add <your-remote>
+npx skills add tim-hub/superpowers-slim
+```
+
+
+### As a Claude Code plugin
+
+```bash
+/plugin marketplace add tim-hub/superpowers-slim
 /plugin install superpowers
 ```
 
