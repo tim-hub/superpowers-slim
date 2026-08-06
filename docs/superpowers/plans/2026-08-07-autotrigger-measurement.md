@@ -371,6 +371,9 @@ raised to 8, and a turn-budget cutoff now prints a NOTE so it stops reading as
 a behavioral failure.
 
 run-all.sh is 4 pass, 0 fail, every hit superpowers:-prefixed."
+```
+
+Expected: `lint-shell.sh` exits 0.
 
 ---
 
@@ -967,8 +970,11 @@ outside the sandbox.
 |---|---|---|---|---|---|---|---|
 | 1 | hook present, original bodies | `615dc8a` | 14 | binding | <N>/15 | <N>/15 | <N>/15 |
 | 2 | hook removed, original bodies | `f49f0d7` | 14 | binding | <N>/15 | <N>/15 | <N>/15 |
-| 3 | slim tree as shipped | `HEAD` | 9 | binding | <N>/15 | <N>/15 | <N>/15 |
-| 4 | slim tree, neutral description | `HEAD`+swap | 9 | neutral | <N>/15 | <N>/15 | <N>/15 |
+| 3 | slim tree as shipped | `<sha>` | 9 | binding | <N>/15 | <N>/15 | <N>/15 |
+| 4 | slim tree, neutral description | `<sha>`+swap | 9 | neutral | <N>/15 | <N>/15 | <N>/15 |
+
+Record the real short sha for rows 3 and 4, not `HEAD` — capture it with
+`git rev-parse --short HEAD` at sweep time. A baseline document that says `HEAD` records nothing.
 
 Configuration 1 reported `hook ok: <N>/15`.
 
@@ -1019,7 +1025,7 @@ default is now 8 and a cutoff prints a NOTE, so it no longer reads as behavioral
 - [ ] Verify no placeholder survived:
 
 ```bash
-grep -n "<N>\|<one or two\|<A short" docs/superpowers/baseline/2026-08-04-after.md
+grep -n "<N>\|<sha>\|<one or two\|<A short" docs/superpowers/baseline/2026-08-04-after.md
 ```
 
 Expected: no output.
