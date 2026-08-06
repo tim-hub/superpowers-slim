@@ -5,8 +5,7 @@
 # Tests whether Claude invokes a skill when the user explicitly requests it by name
 # (without using the plugin namespace prefix)
 #
-# HOME is NOT isolated: runs inherit ~/.claude, so a personal skill of the same name
-# shadows the plugin's and the log records it unprefixed.
+# Uses isolated HOME to avoid user context interference
 
 set -e
 
@@ -26,10 +25,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 TIMESTAMP=$(date +%s)
-OUTPUT_DIR="${TMPDIR:-/tmp}/superpowers-tests/${TIMESTAMP}-$$/explicit-skill-requests/${SKILL_NAME}"
+OUTPUT_DIR="${TMPDIR:-/tmp}/superpowers-tests/${TIMESTAMP}/explicit-skill-requests/${SKILL_NAME}"
 mkdir -p "$OUTPUT_DIR"
-
-TIMEOUT_BIN=$(command -v gtimeout || command -v timeout || true)
 
 # Read prompt from file
 PROMPT=$(cat "$PROMPT_FILE")
@@ -44,10 +41,8 @@ echo ""
 # Copy prompt for reference
 cp "$PROMPT_FILE" "$OUTPUT_DIR/prompt.txt"
 
-# Create a minimal project directory for the test.
-# The agent sees its cwd. Any "superpowers" or skill name in that path cues the skill
-# call the test is trying to measure, so the workspace lives outside OUTPUT_DIR.
-PROJECT_DIR="${TMPDIR:-/tmp}/ws-${TIMESTAMP}-$$"
+# Create a minimal project directory for the test
+PROJECT_DIR="$OUTPUT_DIR/project"
 mkdir -p "$PROJECT_DIR/docs/superpowers/plans"
 
 # Create a dummy plan file for mid-conversation tests
@@ -73,7 +68,7 @@ echo "Running claude -p with explicit skill request..."
 echo "Prompt: $PROMPT"
 echo ""
 
-${TIMEOUT_BIN:+$TIMEOUT_BIN 300} claude -p "$PROMPT" \
+timeout 300 claude -p "$PROMPT" \
     --plugin-dir "$PLUGIN_DIR" \
     --dangerously-skip-permissions \
     --max-turns "$MAX_TURNS" \

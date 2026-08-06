@@ -17,14 +17,10 @@ MAX_TURNS="${2:-3}"
 
 PROMPT="Let's make a react todo list"
 TIMESTAMP=$(date +%s)
-OUTPUT_DIR="${TMPDIR:-/tmp}/superpowers-tests/${TIMESTAMP}-$$/autotrigger"
-# The agent sees its cwd. Any "superpowers" or skill name in that path cues the skill
-# call the test is trying to measure, so the workspace lives outside OUTPUT_DIR.
-PROJECT_DIR="${TMPDIR:-/tmp}/ws-${TIMESTAMP}-$$"
+OUTPUT_DIR="${TMPDIR:-/tmp}/superpowers-tests/${TIMESTAMP}/autotrigger"
+PROJECT_DIR="$OUTPUT_DIR/project"
 LOG_FILE="$OUTPUT_DIR/claude-output.json"
-mkdir -p "$OUTPUT_DIR" "$PROJECT_DIR"
-
-TIMEOUT_BIN=$(command -v gtimeout || command -v timeout || true)
+mkdir -p "$PROJECT_DIR"
 
 echo "=== Brainstorming Auto-Trigger Test ==="
 echo "Plugin dir: $PLUGIN_DIR"
@@ -33,7 +29,7 @@ echo "Prompt: $PROMPT"
 echo ""
 
 cd "$PROJECT_DIR"
-${TIMEOUT_BIN:+$TIMEOUT_BIN 300} claude -p "$PROMPT" \
+timeout 300 claude -p "$PROMPT" \
     --plugin-dir "$PLUGIN_DIR" \
     --dangerously-skip-permissions \
     --max-turns "$MAX_TURNS" \

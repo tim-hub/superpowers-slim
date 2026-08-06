@@ -11,12 +11,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 TIMESTAMP=$(date +%s)
-OUTPUT_DIR="/tmp/superpowers-tests/${TIMESTAMP}-$$/explicit-skill-requests/multiturn"
+OUTPUT_DIR="/tmp/superpowers-tests/${TIMESTAMP}/explicit-skill-requests/multiturn"
 mkdir -p "$OUTPUT_DIR"
 
-# Create project directory (conversation is cwd-based).
-# The agent sees its cwd, so keep "superpowers" out of the workspace path.
-PROJECT_DIR="/tmp/ws-${TIMESTAMP}-$$"
+# Create project directory (conversation is cwd-based)
+PROJECT_DIR="$OUTPUT_DIR/project"
 mkdir -p "$PROJECT_DIR/docs/superpowers/plans"
 
 echo "=== Multi-Turn Explicit Skill Request Test ==="
