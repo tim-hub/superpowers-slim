@@ -219,15 +219,21 @@ model.
 
 ### Which comparisons are clean
 
+All four configurations carry the same `brainstorming` description except configuration 4. Verified:
+`615dc8a`, `f49f0d7` and `master` all ship the binding text, at 14, 14 and 9 skills respectively.
+
 ```
-1 vs 2   hook only, bodies held constant                          CLEAN
-3 vs 4   description only, bodies held constant                   CLEAN
-2 vs 3   rewrite bundle: 14 skills to 9, bodies rewritten,        CONFOUNDED
-         description changed
+1 vs 2   hook only; 14 skills and binding description both held   CLEAN
+3 vs 4   description only; 9 skills and bodies both held          CLEAN
+2 vs 3   rewrite only: 14 skills to 9, bodies rewritten;          CONFOUNDED
+         description held constant                                (2 variables)
 ```
 
 The new document reports 2 versus 3 as a number with no causal claim, and answers the description
 question from 3 versus 4, where one variable moves.
+
+This differs from the old table, whose corresponding pair also moved the description — three variables
+at once. Holding the description constant across 1, 2 and 3 is what makes 3 versus 4 interpretable.
 
 ## Data flow, one run
 
