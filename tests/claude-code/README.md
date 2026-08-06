@@ -20,35 +20,43 @@ the CLI exits immediately and a test reports a FAIL that looks behavioral but is
 ## Running Tests
 
 ```bash
-./run-skill-tests.sh                 # all tests
-./run-skill-tests.sh --verbose       # show full Claude output
-./run-skill-tests.sh --timeout 1800  # raise the per-test budget
-./run-skill-tests.sh --test test-brainstorming-autotrigger.sh
+./measure-autotrigger.sh -n 15
 ```
+
+There is no aggregate runner. `run-skill-tests.sh` was deleted when the one test it wrapped became a
+measurement script.
 
 ## Current Tests
 
-### test-brainstorming-autotrigger.sh
+### measure-autotrigger.sh
 
-The acceptance test for this skill set. Sends exactly `Let's make a react todo list` and asserts:
+Sends exactly `Let's make a react todo list` N times against one tree and reports how often
+`superpowers:brainstorming` fired, how often a file was written before any skill call, and how often the
+run was cut off by the turn budget.
 
-1. `brainstorming` was invoked through the Skill tool.
-2. No `Write`, `Edit`, or `NotebookEdit` call happened before that invocation.
-
-The second assertion is the one that matters. This skill set has no session-start hook and no
-binding language in any description, so nothing forces a skill call before the model starts working.
-If this test regresses, that design decision is what regressed. Before/after results are recorded in
-`docs/superpowers/baseline/`.
-
-It takes an optional plugin-dir argument, which is how the after-measurement compares a modified tree
-against the current one:
+It is not a pass/fail test. Autotriggering is a probabilistic model behavior, so it reports a rate and
+exits 0 whenever the runs completed. It exits non-zero only on broken plumbing: an empty log, a bare
+skill name in the registered commands (meaning `--setting-sources project` did not take and a personal
+`~/.claude/skills` copy is in play), or a plugin hook that did not succeed.
 
 ```bash
-./test-brainstorming-autotrigger.sh /path/to/some/other/checkout
+./measure-autotrigger.sh -n 15                        # current tree, 15 runs
+./measure-autotrigger.sh -n 15 -p /path/to/other      # compare another checkout
+./measure-autotrigger.sh -n 3 -t 3                    # lower turn budget
 ```
 
-One run is one sample. A single pass is weak evidence — run it three times when the result informs a
-decision.
+**Run it outside any command sandbox.** Inside one, a plugin SessionStart hook fails with EPERM under
+`~/.claude` and the injection never reaches the model, so the run measures a broken hook while reporting
+the hook as present.
+
+`brainstorming` carries `"You MUST use this before any creative work..."` in its description, so binding
+language is present; there is no session-start hook. Recorded measurements live in
+`docs/superpowers/baseline/`.
+
+### measure-configs.sh
+
+Scaffolding for one sweep: builds a worktree per configuration and calls `measure-autotrigger.sh` once
+each. See `docs/superpowers/baseline/2026-08-04-after.md` for what it produced.
 
 ## Test Structure
 
@@ -72,9 +80,13 @@ Token telemetry over a captured JSON stream.
 
 1. Create `test-<name>.sh`, writing output under `${TMPDIR:-/tmp}` — a hardcoded `/tmp` is not
    writable in every environment.
-2. Source `test-helpers.sh` if you need the assertions.
-3. Add the filename to the `tests` array in `run-skill-tests.sh`.
+2. Keep the agent's working directory out of that log path. It sees its cwd, so `superpowers`, a skill
+   name, or `test` in the path cues the behavior you are trying to measure.
+3. Pass `--setting-sources project` so `~/.claude` skills, hooks and CLAUDE.md stay out of the run, and
+   require the `superpowers:` prefix when matching a skill invocation.
 4. `chmod +x test-<name>.sh`.
+
+There is no runner to register with. Invoke the script directly.
 
 ## Related
 

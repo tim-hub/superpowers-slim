@@ -30,18 +30,26 @@ Both suites load this checkout with `--plugin-dir` and read the resulting JSON s
 `--verbose` alongside `--print` and `--output-format stream-json`; without it the CLI exits
 immediately and the harness reports a FAIL that looks behavioral but is not.
 
-### The acceptance test
+### Measuring autotrigger rate
 
 ```bash
-bash tests/claude-code/test-brainstorming-autotrigger.sh
+bash tests/claude-code/measure-autotrigger.sh -n 15
 ```
 
-Sends exactly `Let's make a react todo list` and asserts `brainstorming` fires with no file written
-first. This is the load-bearing measurement for this skill set: there is no session-start hook and no
-binding language in any description, so nothing forces a first skill call. If this regresses, that is
-the decision that regressed.
+Sends exactly `Let's make a react todo list` N times and reports how often
+`superpowers:brainstorming` fired, how often a file was written before any skill call, and how often the
+turn budget cut the run off.
 
-See `tests/claude-code/README.md` for the optional plugin-dir argument, used to compare two trees.
+This is a measurement, not a gate. It exits 0 whenever the runs completed — a `0/15` firing rate is data,
+not a failure. It exits non-zero only on broken plumbing. There is no session-start hook in this skill
+set, and `brainstorming`'s description does carry binding language
+(`"You MUST use this before any creative work..."`), so what actually drives a first skill call is an
+open question rather than a settled one.
+
+Run it outside any command sandbox: inside one, a plugin SessionStart hook fails with EPERM under
+`~/.claude`, so the run measures a broken hook.
+
+See `tests/claude-code/README.md` for the `-p` flag, used to compare two trees.
 
 ### Explicit skill requests under resistance
 
