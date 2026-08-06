@@ -55,6 +55,7 @@ echo ">>> Turn 1: Brainstorming request..."
 claude -p "I want to add user authentication to my app. Help me think through this." \
     --model haiku \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 3 \
     --output-format stream-json \
@@ -67,6 +68,7 @@ claude -p "Let's use JWT tokens with 24-hour expiry. Email/password registration
     --continue \
     --model haiku \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 3 \
     --output-format stream-json \
@@ -79,6 +81,7 @@ claude -p "Great, write this up as an implementation plan." \
     --continue \
     --model haiku \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 3 \
     --output-format stream-json \
@@ -91,6 +94,7 @@ claude -p "The plan looks good. What are my options for executing it?" \
     --continue \
     --model haiku \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 2 \
     --output-format stream-json \
@@ -104,6 +108,7 @@ claude -p "executing-plans, please" \
     --continue \
     --model haiku \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 2 \
     --output-format stream-json \

@@ -49,6 +49,7 @@ echo ">>> Turn 1: Starting planning conversation..."
 TURN1_LOG="$OUTPUT_DIR/turn1.json"
 claude -p "I need to implement an authentication system. Let's plan this out. The requirements are: user registration with email/password, JWT tokens, and protected routes." \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 2 \
     --output-format stream-json \
@@ -63,6 +64,7 @@ TURN2_LOG="$OUTPUT_DIR/turn2.json"
 claude -p "Good analysis. I've already written the plan to docs/superpowers/plans/auth-system.md. Now I'm ready to implement. What are my options for execution?" \
     --continue \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 2 \
     --output-format stream-json \
@@ -77,6 +79,7 @@ TURN3_LOG="$OUTPUT_DIR/turn3.json"
 claude -p "executing-plans, please" \
     --continue \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 2 \
     --output-format stream-json \

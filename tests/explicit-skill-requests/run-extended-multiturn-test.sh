@@ -26,6 +26,7 @@ cd "$PROJECT_DIR"
 echo ">>> Turn 1: Brainstorming request..."
 claude -p "I want to add user authentication to my app. Help me think through this." \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 3 \
     --output-format stream-json \
@@ -37,6 +38,7 @@ echo ">>> Turn 2: Answering questions..."
 claude -p "Let's use JWT tokens with 24-hour expiry. Email/password registration." \
     --continue \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 3 \
     --output-format stream-json \
@@ -48,6 +50,7 @@ echo ">>> Turn 3: Requesting plan..."
 claude -p "Great, write this up as an implementation plan." \
     --continue \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 3 \
     --output-format stream-json \
@@ -59,6 +62,7 @@ echo ">>> Turn 4: Confirming plan..."
 claude -p "The plan looks good. What are my options for executing it?" \
     --continue \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 2 \
     --output-format stream-json \
@@ -71,6 +75,7 @@ FINAL_LOG="$OUTPUT_DIR/turn5.json"
 claude -p "executing-plans, please" \
     --continue \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns 2 \
     --output-format stream-json \

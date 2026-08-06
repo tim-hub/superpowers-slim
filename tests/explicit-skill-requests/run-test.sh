@@ -5,14 +5,18 @@
 # Tests whether Claude invokes a skill when the user explicitly requests it by name
 # (without using the plugin namespace prefix)
 #
-# HOME is NOT isolated: runs inherit ~/.claude, so a personal skill of the same name
-# shadows the plugin's and the log records it unprefixed.
+# --setting-sources project excludes ~/.claude, so personal skills of the same name are
+# not loaded and the plugin's own hooks and CLAUDE.md are the only ones in play. HOME is
+# left alone: authentication depends on it and there is nothing to seed.
 
 set -e
 
 SKILL_NAME="$1"
 PROMPT_FILE="$2"
-MAX_TURNS="${3:-3}"
+# 3 is too low. use-systematic-debugging names no actual bug, so the model spends the
+# budget exploring before it can invoke anything: measured, it ends on error_max_turns at
+# num_turns 4 with nothing fired. At 8 the skill fired in 3 of 3 runs.
+MAX_TURNS="${3:-8}"
 
 if [ -z "$SKILL_NAME" ] || [ -z "$PROMPT_FILE" ]; then
     echo "Usage: $0 <skill-name> <prompt-file> [max-turns]"
@@ -75,6 +79,7 @@ echo ""
 
 ${TIMEOUT_BIN:+$TIMEOUT_BIN 300} claude -p "$PROMPT" \
     --plugin-dir "$PLUGIN_DIR" \
+    --setting-sources project \
     --dangerously-skip-permissions \
     --max-turns "$MAX_TURNS" \
     --output-format stream-json \
@@ -84,9 +89,23 @@ ${TIMEOUT_BIN:+$TIMEOUT_BIN 300} claude -p "$PROMPT" \
 echo ""
 echo "=== Results ==="
 
-# Check if skill was triggered (look for Skill tool invocation)
-# Match either "skill":"skillname" or "skill":"namespace:skillname"
-SKILL_PATTERN='"skill":"([^"]*:)?'"${SKILL_NAME}"'"'
+if grep -q '"subtype":"error_max_turns"' "$LOG_FILE"; then
+    echo "NOTE: run ended on error_max_turns at --max-turns $MAX_TURNS."
+    echo "      A FAIL below may be a turn-budget artifact, not behavior."
+fi
+
+# If a bare skill name is registered, --setting-sources project did not take and the
+# measurement is meaningless. Note the leading quote: "superpowers:brainstorming" has a
+# colon before the name and does not match this pattern.
+if grep -m1 '"subtype":"init"' "$LOG_FILE" | grep -q "\"${SKILL_NAME}\""; then
+    echo "HARNESS ERROR: bare '${SKILL_NAME}' is registered — personal skills are in play." >&2
+    echo "  --setting-sources project did not take effect. Aborting." >&2
+    exit 2
+fi
+
+# Only a superpowers:-prefixed invocation counts. An unprefixed match would be a
+# personal ~/.claude/skills copy of the same name answering instead of this plugin.
+SKILL_PATTERN='"skill":"superpowers:'"${SKILL_NAME}"'"'
 if grep -q '"name":"Skill"' "$LOG_FILE" && grep -qE "$SKILL_PATTERN" "$LOG_FILE"; then
     echo "PASS: Skill '$SKILL_NAME' was triggered"
     TRIGGERED=true
