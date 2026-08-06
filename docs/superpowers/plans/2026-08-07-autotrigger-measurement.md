@@ -274,9 +274,9 @@ if grep -q '"subtype":"error_max_turns"' "$LOG_FILE"; then
 fi
 ```
 
-- [ ] Add `--setting-sources project` to the `claude` invocation in each of
-  `run-multiturn-test.sh`, `run-haiku-test.sh`, and `run-extended-multiturn-test.sh`, on the line
-  immediately after `--plugin-dir "$PLUGIN_DIR" \`.
+- [ ] Add `--setting-sources project` after **every** `--plugin-dir "$PLUGIN_DIR" \` line in
+  `run-multiturn-test.sh`, `run-haiku-test.sh`, and `run-extended-multiturn-test.sh`. These are
+  multi-turn scripts with more than one `claude` call each: 3, 5 and 5 respectively.
 
 - [ ] Verify the flag reaches every `claude` invocation in the suite:
 
@@ -284,8 +284,13 @@ fi
 grep -c "setting-sources project" tests/explicit-skill-requests/*.sh
 ```
 
-Expected: `run-test.sh:2` (comment plus flag), `run-multiturn-test.sh:1`, `run-haiku-test.sh:1`,
-`run-extended-multiturn-test.sh:1`, `run-all.sh:0` (it shells out to `run-test.sh`).
+Expected: `run-extended-multiturn-test.sh:5`, `run-haiku-test.sh:5`, `run-multiturn-test.sh:3`,
+`run-all.sh:0` (it shells out to `run-test.sh`), and `run-test.sh:4` — the flag, the header comment, and
+two lines of the pollution guard's error message.
+
+Those three multi-turn scripts also omit `--verbose`, which `docs/testing.md` warns makes the CLI exit
+immediately under `--print` with `--output-format stream-json`. That is a pre-existing defect in scripts
+no gate calls. Leave it alone and mention it.
 
 - [ ] Verify the flag has the measured effect. This run needs network and must be outside the sandbox:
 
