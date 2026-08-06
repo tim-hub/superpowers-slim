@@ -8,10 +8,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 TIMESTAMP=$(date +%s)
-OUTPUT_DIR="/tmp/superpowers-tests/${TIMESTAMP}/explicit-skill-requests/haiku"
+OUTPUT_DIR="/tmp/superpowers-tests/${TIMESTAMP}-$$/explicit-skill-requests/haiku"
 mkdir -p "$OUTPUT_DIR"
 
-PROJECT_DIR="$OUTPUT_DIR/project"
+# The agent sees its cwd, so keep "superpowers" out of the workspace path.
+PROJECT_DIR="/tmp/ws-${TIMESTAMP}-$$"
 mkdir -p "$PROJECT_DIR/docs/superpowers/plans"
 mkdir -p "$PROJECT_DIR/.claude"
 
