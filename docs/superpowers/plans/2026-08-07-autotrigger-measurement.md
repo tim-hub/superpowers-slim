@@ -161,11 +161,28 @@ Expected: `lint-shell.sh` exits 0.
 
 ---
 
-## Task 2: Exclude the user setting source and require the prefix
+## Task 2: Exclude the user setting source, require the prefix, fix the turn budget
 
 The explicit-request suite currently accepts an unprefixed skill invocation, so a personal
 `~/.claude/skills` copy of the same name satisfies its assertion. Pass `--setting-sources project` so the
 personal copy is not loaded, and require the `superpowers:` prefix so the plugin is provably the answerer.
+
+Doing only that turns one of the four tests red, and it was measured before this plan was written.
+`use-systematic-debugging` fails at `run-test.sh`'s default `MAX_TURNS=3` with `error_max_turns` at
+`num_turns 4`: `superpowers:systematic-debugging` is registered, but its prompt
+(`use systematic-debugging to figure out what's wrong`) names no actual bug, so the model spends the
+budget exploring — 2 `Bash` calls and 1 `Read` — before it can invoke anything. At `--max-turns 8` the
+skill fired in 3 of 3 runs. So the third change here is the turn budget, and the gate ends green.
+
+Measured probe, `--setting-sources project`, prefix-anchored, current tree:
+
+```
+executing-plans-please          max-turns 3   superpowers:executing-plans        fired
+use-systematic-debugging        max-turns 3   nothing fired, error_max_turns     FAILED
+please-use-brainstorming        max-turns 3   superpowers:brainstorming          fired
+mid-conversation-execute-plan   max-turns 3   superpowers:executing-plans        fired
+use-systematic-debugging        max-turns 8   superpowers:systematic-debugging   fired 3/3
+```
 
 ### Files
 
@@ -179,7 +196,8 @@ personal copy is not loaded, and require the `superpowers:` prefix so the plugin
 Consumes from Task 1: `TIMEOUT_BIN`, and the `PROJECT_DIR` workspace convention.
 
 Later tasks rely on: the flag string `--setting-sources project` appearing on every `claude` invocation
-under `tests/`, and the pass pattern shape `'"skill":"superpowers:'"${SKILL_NAME}"'"'`.
+under `tests/`, the pass pattern shape `'"skill":"superpowers:'"${SKILL_NAME}"'"'`, and
+`run-test.sh`'s third positional argument `MAX_TURNS` defaulting to `8`.
 
 ### Steps
 
@@ -246,6 +264,31 @@ if grep -m1 '"subtype":"init"' "$LOG_FILE" | grep -q "\"${SKILL_NAME}\""; then
 fi
 ```
 
+- [ ] Raise the default turn budget in `tests/explicit-skill-requests/run-test.sh`. Replace:
+
+```bash
+MAX_TURNS="${3:-3}"
+```
+
+with:
+
+```bash
+# 3 is too low. use-systematic-debugging names no actual bug, so the model spends the
+# budget exploring before it can invoke anything: measured, it ends on error_max_turns at
+# num_turns 4 with nothing fired. At 8 the skill fired in 3 of 3 runs.
+MAX_TURNS="${3:-8}"
+```
+
+- [ ] Make a turn-budget cutoff legible rather than reading as a behavioral failure. In the same file,
+  immediately after the `echo "=== Results ==="` line, insert:
+
+```bash
+if grep -q '"subtype":"error_max_turns"' "$LOG_FILE"; then
+    echo "NOTE: run ended on error_max_turns at --max-turns $MAX_TURNS."
+    echo "      A FAIL below may be a turn-budget artifact, not behavior."
+fi
+```
+
 - [ ] Add `--setting-sources project` to the `claude` invocation in each of
   `run-multiturn-test.sh`, `run-haiku-test.sh`, and `run-extended-multiturn-test.sh`, on the line
   immediately after `--plugin-dir "$PLUGIN_DIR" \`.
@@ -274,16 +317,29 @@ cd "$REPO"
 Expected exactly one line: `superpowers:brainstorming`. If a bare `brainstorming` also appears, the flag
 did not take and Task 2 is not done.
 
-- [ ] Run the gate. Expect failures, and read them:
+- [ ] Verify the default turn budget changed:
+
+```bash
+grep -n 'MAX_TURNS="${3:-' tests/explicit-skill-requests/run-test.sh
+```
+
+Expected: `MAX_TURNS="${3:-8}"`.
+
+- [ ] Run the gate. It must be green:
 
 ```bash
 bash tests/explicit-skill-requests/run-all.sh
+echo "exit=$?"
 ```
 
-Expected: some of the four tests now FAIL. Issue #1 recorded that 3 of 4 previously passed by invoking the
-personal copy. A FAIL here means the user named a skill and this plugin did not answer — a real defect.
-Record the pass/fail counts in the commit message. Do not fix them and do not weaken the assertion; that
-work is scoped to its own issue.
+Expected: `Passed: 4`, `Failed: 0`, `exit=0`, and every `Skills triggered in this run:` line showing a
+`superpowers:`-prefixed name. A `NOTE: run ended on error_max_turns` line alongside a PASS is fine — the
+skill fired before the budget ran out.
+
+If a test FAILs, do not weaken the assertion or drop the prefix requirement. Read the log path the runner
+prints and check three things in order: is the skill registered in the `init` line, did the run end on
+`error_max_turns`, and did any tool run before the `Skill` call. The first two are harness problems; only
+the third is behavioral.
 
 - [ ] Lint and commit:
 
@@ -307,12 +363,14 @@ HOME is left alone. Isolating it breaks authentication with nothing to seed:
 an empty HOME, one seeded with oauthAccount/userID/hasCompletedOnboarding, and
 one with the whole .claude.json copied in all return Not logged in.
 
-run-all.sh is now <PASSED> pass, <FAILED> fail. Red here is a genuine defect,
-not a probability, so the suite stays a gate and the failures get their own
-issue."
-```
+Removing the crutch exposed one real harness defect. use-systematic-debugging
+failed at the default MAX_TURNS=3, ending on error_max_turns at num_turns 4
+with nothing fired: its prompt names no actual bug, so the model spent the
+budget exploring first. At 8 turns the skill fired in 3 of 3 runs. Default
+raised to 8, and a turn-budget cutoff now prints a NOTE so it stops reading as
+a behavioral failure.
 
-Replace `<PASSED>` and `<FAILED>` with the counts you observed.
+run-all.sh is 4 pass, 0 fail, every hit superpowers:-prefixed."
 
 ---
 
@@ -950,14 +1008,18 @@ deliberately.
 
 `tests/explicit-skill-requests/run-all.sh` reported 4/4 passing on the old harness, but 3 of those 4
 invoked a personal `~/.claude/skills` copy rather than this plugin. With `--setting-sources project` and
-a required prefix it reports <PASSED> pass, <FAILED> fail. A failure there means the user named a skill
-and this plugin did not answer — a real defect, tracked separately.
+a required `superpowers:` prefix it reports 4/4 with every hit attributable to this plugin.
+
+Removing the crutch exposed one real harness defect. `use-systematic-debugging` failed at the old default
+`MAX_TURNS=3`, ending on `error_max_turns` at `num_turns 4` with nothing fired: its prompt names no
+actual bug, so the model spent the budget exploring. At 8 turns the skill fired in 3 of 3 runs. The
+default is now 8 and a cutoff prints a NOTE, so it no longer reads as behavioral.
 ```
 
 - [ ] Verify no placeholder survived:
 
 ```bash
-grep -n "<N>\|<PASSED>\|<FAILED>\|<one or two\|<A short" docs/superpowers/baseline/2026-08-04-after.md
+grep -n "<N>\|<one or two\|<A short" docs/superpowers/baseline/2026-08-04-after.md
 ```
 
 Expected: no output.
@@ -1026,6 +1088,5 @@ Spec decisions 1 through 7 map to tasks 2, 1, 3, 4/5, 5, 3, and 3/4/5 respective
 - Whether `brainstorming` needs a wording change, and whether the binding description stays. That is
   decided from Task 5's numbers, in its own spec. Issue #1 goal 3.
 - Restoring `4a69588` (todo mechanization). It measured flat.
-- Fixing whatever `run-all.sh` failures Task 2 exposes. Separate issue.
 - `tests/claude-code/test-helpers.sh` beyond the one-line `timeout` fix in Task 1. It has no callers and
   predates this work.

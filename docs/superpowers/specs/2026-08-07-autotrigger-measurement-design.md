@@ -270,10 +270,16 @@ tally per configuration → "fired 0/15, premature 0/15, truncated 2/15, hook ok
 
 `measure-autotrigger.sh` alone.
 
-`run-all.sh` is expected to turn red. Issue #1 found 3 of its 4 passing tests invoked the personal skill
-copy rather than the plugin; isolation and the prefix requirement remove that crutch. Red there is a
-genuine defect — the user named a skill and the plugin did not answer — so it is fixed, not demoted.
-That fix is out of scope here and belongs to its own issue.
+`run-all.sh` loses its crutch. Issue #1 found 3 of its 4 passing tests invoked the personal skill copy
+rather than the plugin; excluding the user source and requiring the prefix removes that. Red there is a
+genuine defect — the user named a skill and the plugin did not answer — so it is fixed, not demoted, and
+the fix lands in this work rather than a follow-up.
+
+Measured before planning: with the flag and the prefix requirement, 3 of the 4 pass and
+`use-systematic-debugging` fails on the turn budget, not on behavior. It ends `error_max_turns` at
+`num_turns 4` under `run-test.sh`'s default `MAX_TURNS=3` — its prompt names no actual bug, so the model
+spends the budget exploring before it can invoke anything. At `--max-turns 8` the skill fired in 3 of 3
+runs. The default becomes 8, and a cutoff prints a NOTE so it stops reading as a behavioral failure.
 
 ## Error handling
 
@@ -352,4 +358,3 @@ read as an oversight.
   decision is made from these numbers, in its own spec. Issue #1's goal 3.
 - **Restoring `4a69588`** (todo mechanization). It measured flat — its step 1 never called a todo tool
   in 3 of 3 runs. Not to be repeated without new evidence.
-- **Fixing whatever `run-all.sh` failures the prefix assertion exposes.** Separate issue.
