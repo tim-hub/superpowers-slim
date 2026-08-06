@@ -51,8 +51,13 @@ Copied verbatim from the spec. Every task must honour these.
 ## Pre-existing dead code — mention, do not touch
 
 `tests/claude-code/test-helpers.sh` is sourced by no live file. Its `run_claude` at line 19 uses a bare
-`timeout`. Task 1 fixes that one line for portability because issue #1 names it, but the function has no
-callers and the fix changes no behavior. Do not delete the file; it predates this work.
+`timeout`, which issue #1 names among the non-portable call sites.
+
+**Do not fix it.** An earlier draft of this plan did, and the change was reverted during execution.
+`scripts/lint-shell.sh` lints changed files, so touching this file surfaces 5 pre-existing `SC2155`
+warnings at lines 10, 79, 103, 104 and 134 and turns lint red. Clearing them means 5 edits to code with
+no callers — the refactoring-what-you-were-not-asked-to that CLAUDE.md rules out. The function is
+unreachable, so the bare `timeout` can never run. Leave the file alone; this paragraph is the record.
 
 ---
 
@@ -69,7 +74,6 @@ reverted by `efefef4` for sequencing. Restore it.
 - Modified: `tests/explicit-skill-requests/run-multiturn-test.sh`
 - Modified: `tests/explicit-skill-requests/run-haiku-test.sh`
 - Modified: `tests/explicit-skill-requests/run-extended-multiturn-test.sh`
-- Modified: `tests/claude-code/test-helpers.sh`
 
 ### Interfaces
 
@@ -119,45 +123,26 @@ grep -c "Uses isolated HOME" tests/explicit-skill-requests/run-test.sh
 
 Expected: `0`.
 
-- [ ] Fix the one remaining bare `timeout`, in the unreachable helper. Replace line 19 of
-  `tests/claude-code/test-helpers.sh`:
-
-```bash
-    # Run Claude in headless mode with timeout
-    if timeout "$timeout" "${cmd[@]}" > "$output_file" 2>&1; then
-```
-
-with:
-
-```bash
-    # Run Claude in headless mode with timeout. macOS has no timeout(1) unless
-    # coreutils is installed, so resolve gtimeout first and run unwrapped if neither exists.
-    local timeout_bin
-    timeout_bin=$(command -v gtimeout || command -v timeout || true)
-    if ${timeout_bin:+$timeout_bin "$timeout"} "${cmd[@]}" > "$output_file" 2>&1; then
-```
-
-- [ ] Verify no bare `timeout` invocation remains anywhere in `tests/`:
+- [ ] Verify which bare `timeout` invocations remain in `tests/`:
 
 ```bash
 grep -rn '^\s*timeout \|[^_a-zA-Z]timeout "' tests/ --include='*.sh' | grep -v 'timeout_bin\|TIMEOUT_BIN\|local timeout'
 ```
 
-Expected: only `tests/claude-code/run-skill-tests.sh` lines 103 and 123. That file is deleted in Task 3.
+Expected: `tests/claude-code/run-skill-tests.sh` lines 103 and 123, which Task 3 deletes, and
+`tests/claude-code/test-helpers.sh` line 19, which stays — see Pre-existing dead code above. Do not fix
+the latter.
 
-- [ ] Lint and commit:
+- [ ] Confirm lint is clean. The cherry-pick is already committed, so there is nothing further to commit
+  in this task:
 
 ```bash
 bash scripts/lint-shell.sh
-git add tests/claude-code/test-helpers.sh
-git commit -m "fix(tests): resolve gtimeout before timeout in the unreachable run_claude helper
-
-Issue #1 names test-helpers.sh:19 among the bare timeout call sites. The
-function has no callers, so this changes no behavior; it stops the last
-non-portable invocation in tests/ outside the file Task 3 deletes."
+git status --porcelain
 ```
 
-Expected: `lint-shell.sh` exits 0.
+Expected: `lint-shell.sh` exits 0, and `git status` prints nothing. `scripts/lint-shell.sh` needs
+`shellcheck` on PATH; install it with `brew install shellcheck` if it is missing.
 
 ---
 
@@ -1094,5 +1079,5 @@ Spec decisions 1 through 7 map to tasks 2, 1, 3, 4/5, 5, 3, and 3/4/5 respective
 - Whether `brainstorming` needs a wording change, and whether the binding description stays. That is
   decided from Task 5's numbers, in its own spec. Issue #1 goal 3.
 - Restoring `4a69588` (todo mechanization). It measured flat.
-- `tests/claude-code/test-helpers.sh` beyond the one-line `timeout` fix in Task 1. It has no callers and
-  predates this work.
+- `tests/claude-code/test-helpers.sh` entirely. It has no callers, predates this work, and touching it
+  drags 5 pre-existing `SC2155` warnings into lint. See Pre-existing dead code above.
