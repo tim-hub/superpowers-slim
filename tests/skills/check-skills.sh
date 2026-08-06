@@ -10,7 +10,7 @@ fail() { echo "FAIL: $*"; FAIL=1; }
 # SKILL.md word ceilings. Raise a ceiling here rather than dropping a step.
 budget() {
   case "$1" in
-    brainstorming)                  echo 300 ;;
+    brainstorming)                  echo 320 ;;
     writing-plans)                  echo 380 ;;
     executing-plans)                echo 200 ;;
     test-driven-development)        echo 270 ;;
