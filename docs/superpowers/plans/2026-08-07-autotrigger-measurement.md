@@ -917,12 +917,28 @@ Expected: four blocks, `hook ok:    15/15` in the `cfg1-hook-original` block, an
 configuration reports a harness failure the script aborts and prints where the partial summaries are —
 fix the cause and rerun that configuration rather than recording a partial table.
 
-- [ ] If any configuration reports more than 3 of 15 truncated, rerun that configuration at a higher turn
-  budget and use the rerun. A truncated run measures the turn budget, not the model:
+- [ ] If any configuration reports more than 3 of 15 truncated, check whether the truncation preceded the
+  decision before rerunning. Count runs that are truncated **and** wrote no file **and** invoked no skill
+  — only those were cut off before deciding:
+
+```bash
+for f in "$D"/run-*.json; do
+    t=$(grep -c '"subtype":"error_max_turns"' "$f")
+    w=$(grep '"type":"tool_use"' "$f" | grep -cE '"name":"(Write|Edit|NotebookEdit)"')
+    s=$(grep -c '"skill":"superpowers:brainstorming"' "$f")
+    [ "$t" -gt 0 ] && [ "$w" -eq 0 ] && [ "$s" -eq 0 ] && echo "inconclusive: $f"
+done
+```
+
+If that count is 0, the truncated runs had already committed to writing code, the `fired` number stands,
+and rerunning only lets them build more of a todo app. Rerun at a higher budget only for the runs the
+loop above prints:
 
 ```bash
 bash tests/claude-code/measure-autotrigger.sh -n 15 -t 12 -p "<WT_ROOT>/<config>"
 ```
+
+On the 2026-08-07 sweep this counted 0 of 15 in every configuration, so no rerun happened.
 
 - [ ] Replace the entire content of `docs/superpowers/baseline/2026-08-04-after.md` with the following,
   substituting every `<...>` placeholder with an observed number. Leave no angle brackets in the file:
