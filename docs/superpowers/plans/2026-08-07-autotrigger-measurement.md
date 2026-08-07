@@ -53,11 +53,17 @@ Copied verbatim from the spec. Every task must honour these.
 `tests/claude-code/test-helpers.sh` is sourced by no live file. Its `run_claude` at line 19 uses a bare
 `timeout`, which issue #1 names among the non-portable call sites.
 
-**Do not fix it.** An earlier draft of this plan did, and the change was reverted during execution.
-`scripts/lint-shell.sh` lints changed files, so touching this file surfaces 5 pre-existing `SC2155`
-warnings at lines 10, 79, 103, 104 and 134 and turns lint red. Clearing them means 5 edits to code with
-no callers — the refactoring-what-you-were-not-asked-to that CLAUDE.md rules out. The function is
-unreachable, so the bare `timeout` can never run. Leave the file alone; this paragraph is the record.
+Resolved at integration time, in two steps.
+
+During Task 1 the bare `timeout` fix was attempted and reverted: `scripts/lint-shell.sh` lints changed
+files, so touching this file surfaced 5 pre-existing `SC2155` warnings at lines 10, 79, 103, 104 and 134
+and turned lint red, and clearing them looked like refactoring code with no callers.
+
+At integration the partner asked for the lint fixed instead. The 5 `SC2155` warnings are now split into
+separate declare and assign statements, so `scripts/lint-shell.sh --all` passes across all 13 tracked
+shell files. The bare `timeout` at line 19 is still there and still unreachable; nothing calls
+`run_claude`, so it can never run. The remaining `SC2001` notes in this file are style level, which the
+repo's lint does not fail on.
 
 ---
 
